@@ -2,7 +2,7 @@
 
 Ứng dụng tìm kiếm, phân tích và xếp hạng sản phẩm affiliate (Shopee, TikTok Shop), sau này mở rộng sang tạo kịch bản và video quảng cáo bằng AI.
 
-**Trạng thái: Phase 1 (MVP Product Intelligence) — đã chạy được.** Xem mục "Chưa có gì" bên dưới để biết chính xác phần nào chưa hoạt động.
+**Trạng thái: Phase 1 (Foundation) — đã chạy được.** Chạy hoàn toàn trên máy bạn, chi phí 0đ, không gọi API trả phí nào. Xem mục "Chưa có gì" bên dưới để biết chính xác phần nào chưa hoạt động.
 
 ## Cần cài trước
 - **Node.js 20+** (https://nodejs.org) và **Python 3.11+** (https://python.org). Không cần cài database: mặc định dùng SQLite.
@@ -41,7 +41,7 @@ cd frontend && npm install && npm run dev
 Tài liệu API tự động: http://localhost:8000/docs
 
 ## Cách dùng
-1. **Dashboard** → bấm *Nạp dữ liệu DEMO* để xem thử. Sản phẩm DEMO là **hư cấu**, luôn có nhãn `DEMO`; xóa bằng *Xóa dữ liệu DEMO*.
+1. **Cài đặt** → bật *Chế độ DEMO* để xem thử. Dữ liệu DEMO là **hư cấu**, nằm trong database riêng (`backend/data/demo.db`), luôn có thanh cảnh báo `DEMO DATA` và **không bao giờ trộn** với dữ liệu thật (đang bật DEMO thì không nhập CSV được).
 2. **Tìm sản phẩm** → *Nhập CSV* (tải *file mẫu* để xem định dạng). Cột bắt buộc: `platform` (`shopee`/`tiktok_shop`) và `name`. Ô trống = "Chưa có dữ liệu", hệ thống không tự điền số. Dòng sai được báo rõ số dòng và lý do. Nhập lại file có cùng `external_id` sẽ cập nhật, không nhân đôi. Dùng bộ lọc rồi *Xuất CSV*.
 3. **Xếp hạng** → sắp xếp theo điểm, hoa hồng/đơn, giá, đánh giá, số bán, tăng trưởng, phù hợp video.
 4. Bấm vào sản phẩm → **trang chi tiết**: điểm từng tiêu chí, độ tin cậy, giải thích cách tính, ưu điểm/rủi ro, các khoản tiền tách bạch.
@@ -54,6 +54,18 @@ Tài liệu API tự động: http://localhost:8000/docs
 - **Điểm cuối = điểm trung bình × (0,6 + 0,4 × độ tin cậy)** → thiếu dữ liệu thì điểm thấp hơn.
 - *Hoa hồng danh nghĩa* = giá × tỷ lệ; *thực nhận ước tính* chỉ tính khi có tỷ lệ hoàn/hủy thật; *doanh thu sản phẩm* ≠ thu nhập của bạn; *lợi nhuận* chưa tính ở Phase 1 (cần chi phí và đơn thật — Phase 6).
 - Các mốc chuẩn hóa (vd. 10.000 đánh giá = 100 điểm) là quy ước của công thức, hiển thị ngay dưới từng tiêu chí; chỉ riêng mức hoa hồng mục tiêu chỉnh được trong Cài đặt.
+
+## AI cục bộ (Ollama) — không bắt buộc ở Phase này
+Ứng dụng chạy bình thường khi chưa có Ollama. Khi muốn dùng: cài từ https://ollama.com/download, mở cmd mới, chạy `ollama pull llama3.2:3b`, rồi vào **Cài đặt → Test AI Connection**. Chưa bật Ollama thì sẽ báo "Ollama is not running. Start Ollama and try again." Các AI trả phí (OpenAI/Gemini/Claude) cố ý **chưa được triển khai**.
+
+## Kết nối sàn
+Trang **Kết nối** hiển thị trạng thái thật. Hiện cả Shopee và TikTok Shop là `NOT CONFIRMED` (chưa xác minh được API chính thức), nên nút Connect từ chối rõ ràng và nút quét bị khóa; không có dữ liệu giả. Dùng *Nhập CSV* trong lúc chờ.
+
+## Chi phí, API, logs
+- **Chi phí & API**: chỉ ghi `$0` khi thực sự không dùng dịch vụ trả phí; giá chưa biết ghi `Pricing not confirmed`; quota không có thì ghi `Quota information unavailable`.
+- **Logs** ở thư mục `logs/` (`app.log`, `api.log`, `scanner.log`, `error.log`), tự che `access_token`, `refresh_token`, `api_key`, `password`, `cookie`. Xem trong Cài đặt.
+- Lỗi hiển thị thân thiện; chi tiết kỹ thuật chỉ ghi vào `logs/error.log`.
+- Database dùng **Alembic**: tự nâng cấp khi khởi động, kể cả database của bản Phase 1 cũ (dữ liệu CSV của bạn được giữ nguyên; dữ liệu DEMO cũ lẫn trong database thật sẽ bị gỡ).
 
 ## Kiểm thử
 ```bash
@@ -70,8 +82,9 @@ cd frontend && npm run lint && npm run build     # kiểm tra giao diện
 - Kết nối API trực tiếp Shopee/TikTok Shop (Phase 2 — cần tài khoản affiliate được duyệt).
 - Script Studio AI, Creator Profiles, Video Studio/Library, Quality Control, Analytics (Phase 3–6) — menu có trang "sắp có".
 - Xếp hạng theo "phù hợp hồ sơ creator" (cần Phase 4).
-- Migration (Alembic): hiện bảng được tạo tự động; sẽ thêm khi cần nâng cấp cấu trúc dữ liệu.
+- Quét sản phẩm (scan), OAuth, lưu token mã hóa (Phase 2–3; bảng dữ liệu đã sẵn sàng).
+- Phân tích AI, review (cần Ollama; Phase 4). Creator Profile.
 - Chưa có đăng nhập người dùng: chỉ chạy trên máy cá nhân (127.0.0.1), đừng mở ra Internet.
 
 ## Bảo mật & quyền riêng tư
-Không lưu mật khẩu Shopee/TikTok; khóa API (nếu có sau này) chỉ ở `.env`. File upload bị giới hạn `.csv`, dung lượng và số dòng; CSV xuất có chống chèn công thức Excel. Dữ liệu chỉ lưu cục bộ trong `backend/data/`; có nút xóa dữ liệu DEMO và dữ liệu của bạn.
+Không lưu mật khẩu Shopee/TikTok; khóa API (nếu có sau này) chỉ ở `.env`. File upload bị giới hạn `.csv`, dung lượng và số dòng; CSV xuất có chống chèn công thức Excel. Dữ liệu chỉ lưu cục bộ trong `backend/data/`; có nút xóa dữ liệu của bạn trên Dashboard.

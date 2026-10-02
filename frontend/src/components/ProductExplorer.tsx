@@ -119,7 +119,7 @@ export default function ProductExplorer({ mode }: { mode: "discovery" | "ranking
       {err && <ErrorBox message={err} onRetry={load} />}
       {!loading && !err && data && data.total === 0 && (
         hasFilter ? <Empty title="Không có sản phẩm khớp bộ lọc">Thử nới lỏng điều kiện lọc.</Empty>
-          : <Empty title="Chưa có sản phẩm nào">Bấm <b>Nhập CSV</b> để nhập dữ liệu của bạn, hoặc nạp dữ liệu DEMO ở trang <Link className="text-indigo-600 underline" href="/">Dashboard</Link> để trải nghiệm.</Empty>
+          : <Empty title="Chưa có sản phẩm nào">Bấm <b>Nhập CSV</b> để nhập dữ liệu của bạn, hoặc bật chế độ DEMO ở trang <Link className="text-indigo-600 underline" href="/settings">Cài đặt</Link> để trải nghiệm.</Empty>
       )}
       {!loading && !err && data && data.total > 0 && (
         <div className="overflow-x-auto rounded-xl border bg-white">

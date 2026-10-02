@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: "▦" },
@@ -13,12 +14,17 @@ const NAV = [
   { href: "/coming/library", label: "Thư viện video", icon: "🎞️", soon: "P5" },
   { href: "/coming/analytics", label: "Analytics", icon: "📈", soon: "P6" },
   { href: "/integrations", label: "Kết nối", icon: "🔌" },
+  { href: "/system", label: "Chi phí & API", icon: "💲" },
   { href: "/settings", label: "Cài đặt", icon: "⚙️" },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [demo, setDemo] = useState(false);
+  useEffect(() => {
+    api<{ demo_mode: boolean }>("/settings/general").then((g) => setDemo(g.demo_mode)).catch(() => {});
+  }, [path]);
   const nav = (
     <nav className="flex flex-col gap-1 p-3">
       {NAV.map((n) => {
@@ -43,9 +49,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <aside className={`${open ? "block" : "hidden"} border-r bg-white md:block md:w-60 md:shrink-0`}>
         <div className="hidden px-5 py-5 text-lg font-bold text-indigo-700 md:block">AI Affiliate Agent</div>
         {nav}
-        <p className="p-4 text-[11px] leading-snug text-slate-400">Phase 1 — MVP Product Intelligence</p>
+        <p className="p-4 text-[11px] leading-snug text-slate-400">Foundation — chạy local, 0đ</p>
       </aside>
-      <main className="min-w-0 flex-1 bg-slate-50 p-4 md:p-8">{children}</main>
+      <main className="min-w-0 flex-1 bg-slate-50 p-4 md:p-8">
+        {demo && (
+          <div role="status" className="mb-5 rounded-lg border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900">
+            DEMO DATA — đang xem dữ liệu hư cấu, không phải dữ liệu thật. Tắt trong Cài đặt.
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

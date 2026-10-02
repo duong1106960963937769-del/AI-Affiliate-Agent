@@ -3,7 +3,7 @@ Mọi số liệu ở đây không phải dữ liệu thị trường thật. M�
 để minh họa trạng thái 'Chưa có dữ liệu'."""
 from datetime import timedelta
 
-from ..models import Product, utcnow
+from app.models import Product, utcnow
 
 # (platform, tên, ngành, giá, hoa hồng %, rating, số đánh giá, tổng bán, bán 30d, 30d trước, cạnh tranh, hoàn %, video_fit)
 _ROWS = [

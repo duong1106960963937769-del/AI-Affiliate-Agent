@@ -65,13 +65,14 @@ def test_detail_and_favorite(client):
 
 
 def test_demo_lifecycle_and_labels(client):
-    assert client.post("/api/demo").json()["created"] == 15
-    assert client.post("/api/demo").status_code == 409
+    assert client.get("/api/products").json()["total"] == 0          # DB thật trống
+    assert client.put("/api/settings/general", json={"demo_mode": True}).json()["demo_mode"] is True
     items = client.get("/api/products", params={"page_size": 100}).json()["items"]
-    assert all(i["is_demo"] and i["name"].startswith("[DEMO]") for i in items)
+    assert len(items) == 15 and all(i["is_demo"] and i["name"].startswith("[DEMO]") for i in items)
     assert any(i["score"] is None or i["confidence"] < 0.5 for i in items)  # có sản phẩm thiếu dữ liệu
-    assert client.delete("/api/demo").json()["deleted"] == 15
-    assert client.get("/api/products").json()["total"] == 0
+    assert client.get("/api/stats").json()["mode"] == "demo"
+    client.put("/api/settings/general", json={"demo_mode": False})
+    assert client.get("/api/products").json()["total"] == 0          # DEMO không lọt vào dữ liệu thật
 
 
 def test_export_roundtrip_and_injection_guard(client):

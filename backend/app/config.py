@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     max_upload_mb: int = 5
     max_import_rows: int = 5000
+    log_dir: str = str(BASE_DIR.parent / "logs")
+    demo_database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'demo.db'}"
+    ollama_url: str = "http://127.0.0.1:11434"
 
 
 settings = Settings()

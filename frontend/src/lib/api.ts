@@ -43,7 +43,7 @@ export type ProductDetail = Product & {
 };
 
 export type ListResponse = { total: number; page: number; page_size: number; items: Product[] };
-export type Stats = { total: number; by_source: Record<string, number>; by_platform: Record<string, number>; favorites: number };
+export type Stats = { mode: "demo" | "real"; total: number; by_source: Record<string, number>; by_platform: Record<string, number>; favorites: number };
 
 export function filtersToQuery(f: Record<string, string>): string {
   const p = new URLSearchParams();

@@ -3,9 +3,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..database import DemoSessionLocal, get_data_db, get_db
 from ..models import AppSetting, Product
-from ..services.demo_data import build_demo
+from mock.demo_seed import ensure_demo_schema, reset_demo, seed_demo
+from ..services.app_settings import SettingsError, is_demo_mode, load_general, save_general
 from ..services.scoring import CRITERIA, DEFAULT_SETTINGS
 
 router = APIRouter()
@@ -63,57 +64,46 @@ def reset_settings(db: Session = Depends(get_db)):
     return load_settings(db)
 
 
-@router.post("/demo")
-def seed_demo(db: Session = Depends(get_db)):
-    if db.query(Product).filter_by(source="demo").count():
-        raise HTTPException(409, "Dữ liệu DEMO đã được nạp.")
-    items = build_demo()
-    db.add_all(items)
-    db.commit()
-    return {"created": len(items)}
+@router.get("/settings/general")
+def get_general(db: Session = Depends(get_db)):
+    return load_general(db)
 
 
-@router.delete("/demo")
-def delete_demo(db: Session = Depends(get_db)):
-    n = db.query(Product).filter_by(source="demo").delete()
-    db.commit()
-    return {"deleted": n}
+@router.put("/settings/general")
+def put_general(patch: dict, db: Session = Depends(get_db)):
+    try:
+        out = save_general(db, patch)
+    except SettingsError as e:
+        raise HTTPException(422, str(e))
+    if out["demo_mode"]:  # lần đầu bật DEMO thì nạp dữ liệu vào database DEMO riêng
+        ensure_demo_schema()
+        with DemoSessionLocal() as demo:
+            seed_demo(demo)
+    return out
+
+
+@router.post("/demo/reset")
+def reset_demo_data():
+    """Đặt lại database DEMO (không đụng tới dữ liệu thật)."""
+    ensure_demo_schema()
+    with DemoSessionLocal() as demo:
+        return {"created": reset_demo(demo)}
 
 
 @router.delete("/data")
 def delete_all_user_data(db: Session = Depends(get_db)):
-    """Xóa toàn bộ sản phẩm do người dùng nhập (CSV/thủ công), giữ nguyên dữ liệu DEMO."""
-    n = db.query(Product).filter(Product.source != "demo").delete()
+    """Xóa toàn bộ sản phẩm THẬT do người dùng nhập. Không áp dụng trong chế độ DEMO."""
+    if is_demo_mode(db):
+        raise HTTPException(409, "Đang ở chế độ DEMO. Hãy tắt DEMO trước khi xóa dữ liệu thật.")
+    n = db.query(Product).delete()
     db.commit()
     return {"deleted": n}
 
 
 @router.get("/stats")
-def stats(db: Session = Depends(get_db)):
+def stats(db: Session = Depends(get_data_db), main: Session = Depends(get_db)):
     by_source = dict(db.query(Product.source, func.count()).group_by(Product.source).all())
     by_platform = dict(db.query(Product.platform, func.count()).group_by(Product.platform).all())
-    return {"total": sum(by_source.values()), "by_source": by_source, "by_platform": by_platform,
+    return {"mode": "demo" if is_demo_mode(main) else "real", "total": sum(by_source.values()),
+            "by_source": by_source, "by_platform": by_platform,
             "favorites": db.query(Product).filter_by(is_favorite=True).count()}
-
-
-INTEGRATIONS = [
-    {"key": "csv", "name": "Nhập CSV", "platform": "shopee,tiktok_shop", "status": "available",
-     "note": "Hoạt động. Dùng khi bạn xuất dữ liệu từ trang đối tác/affiliate của sàn."},
-    {"key": "shopee_affiliate", "name": "Shopee Affiliate (API)", "platform": "shopee", "status": "not_connected",
-     "note": "Phase 2. Cần tài khoản Shopee Affiliate được duyệt và thông tin API do Shopee cấp. "
-             "Chưa xác minh quyền truy cập nên chưa triển khai."},
-    {"key": "tiktok_shop_affiliate", "name": "TikTok Shop Affiliate (API)", "platform": "tiktok_shop",
-     "status": "not_connected",
-     "note": "Phase 2. Cần tài khoản TikTok Shop Partner/Affiliate được duyệt. Chưa xác minh nên chưa triển khai."},
-    {"key": "ai_provider", "name": "AI viết kịch bản (Claude/Gemini)", "platform": "-", "status": "not_connected",
-     "note": "Phase 3. Cần API key của bạn (có phí theo mức dùng). Chưa dùng trong Phase 1."},
-    {"key": "veo", "name": "Google Flow / Veo", "platform": "-", "status": "not_connected",
-     "note": "Phase 5. Cần xác minh API chính thức, quyền truy cập và chi phí trước khi tích hợp."},
-    {"key": "seedance", "name": "Seedance", "platform": "-", "status": "not_connected",
-     "note": "Phase 5. Cần xác minh API chính thức và quyền sử dụng thương mại trước khi tích hợp."},
-]
-
-
-@router.get("/integrations")
-def integrations():
-    return INTEGRATIONS

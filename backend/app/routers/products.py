@@ -7,9 +7,10 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..database import get_db
+from ..database import get_data_db, get_db
 from ..models import Product, utcnow
 from ..services import csv_io
+from ..services.app_settings import is_demo_mode
 from ..services.scoring import (
     NO_DATA, VIDEO_STYLE_TIPS, commission_per_order, growth_pct, net_commission_estimate, pros_and_risks,
     product_revenue, score_product,
@@ -117,8 +118,8 @@ def _sort_key(item: dict, sort: str):
     return v
 
 
-def _ranked(db, f, sort, order):
-    cfg = load_settings(db)
+def _ranked(db, main, f, sort, order):
+    cfg = load_settings(main)
     items = [serialize(p, cfg) for p in _query(db, **f).all()]
     have = [i for i in items if _sort_key(i, sort) is not None]
     none = [i for i in items if _sort_key(i, sort) is None]  # thiếu dữ liệu luôn xếp cuối
@@ -128,15 +129,16 @@ def _ranked(db, f, sort, order):
 
 @router.get("")
 def list_products(f: dict = Depends(filters), sort: Literal[SORTS] = "score", order: Literal["asc", "desc"] = "desc",
-                  page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_db)):
-    items = _ranked(db, f, sort, order)
+                  page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100), db: Session = Depends(get_data_db),
+                  main: Session = Depends(get_db)):
+    items = _ranked(db, main, f, sort, order)
     start = (page - 1) * page_size
     return {"total": len(items), "page": page, "page_size": page_size, "items": items[start:start + page_size],
             "no_data_label": NO_DATA}
 
 
 @router.get("/meta")
-def meta(db: Session = Depends(get_db)):
+def meta(db: Session = Depends(get_data_db)):
     cats = [c for (c,) in db.query(Product.category).distinct().order_by(Product.category) if c]
     return {"categories": cats}
 
@@ -149,8 +151,8 @@ def template():
 
 @router.get("/export.csv")
 def export(f: dict = Depends(filters), sort: Literal[SORTS] = "score", order: Literal["asc", "desc"] = "desc",
-           db: Session = Depends(get_db)):
-    ids = [i["id"] for i in _ranked(db, f, sort, order)]
+           db: Session = Depends(get_data_db), main: Session = Depends(get_db)):
+    ids = [i["id"] for i in _ranked(db, main, f, sort, order)]
     by_id = {p.id: p for p in db.query(Product).filter(Product.id.in_(ids)).all()} if ids else {}
     return Response(csv_io.export_csv([by_id[i] for i in ids]), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="san-pham-xuat.csv"'})
@@ -158,6 +160,8 @@ def export(f: dict = Depends(filters), sort: Literal[SORTS] = "score", order: Li
 
 @router.post("/import")
 async def import_products(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if is_demo_mode(db):
+        raise HTTPException(409, "Đang ở chế độ DEMO nên không thể nhập dữ liệu thật. Hãy tắt chế độ DEMO trong Cài đặt.")
     name = (file.filename or "").strip()
     if not name.lower().endswith(".csv"):
         raise HTTPException(415, "Chỉ chấp nhận file .csv")
@@ -174,15 +178,15 @@ async def import_products(file: UploadFile = File(...), db: Session = Depends(ge
 
 
 @router.get("/{product_id}")
-def get_product(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, db: Session = Depends(get_data_db), main: Session = Depends(get_db)):
     p = db.get(Product, product_id)
     if not p:
         raise HTTPException(404, "Không tìm thấy sản phẩm.")
-    return serialize(p, load_settings(db), detail=True)
+    return serialize(p, load_settings(main), detail=True)
 
 
 @router.put("/{product_id}/favorite")
-def set_favorite(product_id: int, value: bool = True, db: Session = Depends(get_db)):
+def set_favorite(product_id: int, value: bool = True, db: Session = Depends(get_data_db)):
     p = db.get(Product, product_id)
     if not p:
         raise HTTPException(404, "Không tìm thấy sản phẩm.")
@@ -192,7 +196,7 @@ def set_favorite(product_id: int, value: bool = True, db: Session = Depends(get_
 
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(product_id: int, db: Session = Depends(get_data_db)):
     p = db.get(Product, product_id)
     if not p:
         raise HTTPException(404, "Không tìm thấy sản phẩm.")
