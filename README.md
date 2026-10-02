@@ -7,14 +7,27 @@
 ## Cần cài trước
 - **Node.js 20+** (https://nodejs.org) và **Python 3.11+** (https://python.org). Không cần cài database: mặc định dùng SQLite.
 
-## Cách chạy (cách nhanh)
-Mở terminal tại thư mục dự án:
+## Lấy mã nguồn về máy
+Cần cài [Git](https://git-scm.com/download/win) (hoặc tải ZIP từ GitHub). Phần mềm hiện nằm trên nhánh `claude/dazzling-goodall-5urr3c`:
+```
+git clone -b claude/dazzling-goodall-5urr3c https://github.com/duong1106960963937769-del/AI-Affiliate-Agent.git
+cd AI-Affiliate-Agent
+```
+
+## Cách chạy
+
+### Windows
+Bấm đúp file `scripts\start.bat` (hoặc trong cmd, đã `cd` vào thư mục dự án: `scripts\start.bat`).
+Lưu ý: gõ `scripts\start.bat` chứ **không** gõ `./scripts/start.sh` (lệnh đó chỉ dành cho Mac/Linux).
+Lần đầu sẽ tự cài thư viện (vài phút), sau đó tự mở trình duyệt tại **http://localhost:3000**. Để dừng, đóng 2 cửa sổ đen.
+
+### Mac / Linux
 ```bash
 ./scripts/start.sh
 ```
-Sau đó mở **http://localhost:3000**. Dừng bằng `Ctrl+C`. Lần đầu chạy sẽ tự cài thư viện (mất vài phút).
+Mở **http://localhost:3000**, dừng bằng `Ctrl+C`.
 
-### Hoặc chạy thủ công (2 terminal)
+### Chạy thủ công (2 terminal)
 ```bash
 # Terminal 1 - backend
 cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -23,7 +36,7 @@ cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 # Terminal 2 - giao diện
 cd frontend && npm install && npm run dev
 ```
-(Windows: dùng `.venv\Scripts\uvicorn` thay cho `.venv/bin/uvicorn`.)
+(Windows: dùng `python` thay `python3`, và `.venv\Scripts\uvicorn` thay `.venv/bin/uvicorn`.)
 
 Tài liệu API tự động: http://localhost:8000/docs
 
